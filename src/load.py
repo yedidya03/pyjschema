@@ -1,8 +1,7 @@
-import base64
 import json
-import uuid
-from datetime import datetime
-from typing import Optional, Callable, Any
+from typing import Optional
+
+from src.string import validate_string
 
 
 def loads(raw: str | bytes, schema: Optional[dict] = None):
@@ -19,17 +18,6 @@ def loads(raw: str | bytes, schema: Optional[dict] = None):
     """
     obj = json.loads(raw)
     return loado(obj, schema)
-
-
-# TODO: complete formats
-DEFAULT_FORMATS: dict[str, Callable[[str], Any]] = {
-    'uuid': uuid.UUID.__init__,
-    'date-time': datetime.fromisoformat,
-    'time': datetime.fromisoformat,
-    'date': datetime.fromisoformat,
-    'duration': lambda x: x,
-    'bytes': base64.b64decode
-}
 
 
 def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] = None):
@@ -51,7 +39,7 @@ def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] =
             return _array(obj, schema, extended_formats=extended_formats)
 
         case 'string':
-            return _string(obj, schema, extended_formats)
+            return validate_string(obj, schema, extended_formats)
 
         case 'number' | 'integer':
             # TODO: "multipleOf", "minimum", "exclusiveMinimum", "maximum", "exclusiveMaximum"
@@ -114,27 +102,3 @@ def _array(obj, schema: Optional[dict] = None, **kwargs):
             ret.append(loado(item, schema['items'], **kwargs))
 
     return ret
-
-
-def _string(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] = None):
-    # TODO: "pattern", more formats
-
-    if not isinstance(obj, str):
-        raise ValueError('value is not a string')
-
-    f = schema.get('format')
-    if f is None:
-        return obj
-
-    try:
-        if f not in DEFAULT_FORMATS and (extended_formats is None or f not in extended_formats):
-            raise ValueError(f'format {f} is not supported')
-
-        formatter = DEFAULT_FORMATS.get(f)
-        if formatter is None:
-            formatter = extended_formats[f]
-
-        return formatter(obj)
-
-    except Exception as e:
-        raise ValueError(f'error in formatting data, format: {schema["format"]}, error: {e}')
