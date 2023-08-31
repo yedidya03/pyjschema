@@ -1,10 +1,11 @@
 import json
 from typing import Optional
 
+from src.number import validate_number
 from src.string import validate_string
 
 
-def loads(raw: str | bytes, schema: Optional[dict] = None):
+def loads(raw: str | bytes, schema: Optional[dict] = None, extended_formats: Optional[dict] = None, **kwargs):
     """
     Like json.loads(), only that if a schema is given, it validates the data according to the schema and fills the
     fields in pythonic types according to the schema (for example datetime for type "string" and forma "date-time").
@@ -13,11 +14,12 @@ def loads(raw: str | bytes, schema: Optional[dict] = None):
 
     :param raw: the json to parse according to the schema
     :param schema: the schema to check according to
+    :param extended_formats: more formats for string parsing
 
     TODO: add the params options of json.loads to this function
     """
-    obj = json.loads(raw)
-    return loado(obj, schema)
+    obj = json.loads(raw, **kwargs)
+    return loado(obj, schema, extended_formats=extended_formats)
 
 
 def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] = None):
@@ -42,10 +44,7 @@ def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] =
             return validate_string(obj, schema, extended_formats)
 
         case 'number' | 'integer':
-            # TODO: "multipleOf", "minimum", "exclusiveMinimum", "maximum", "exclusiveMaximum"
-
-            if not (isinstance(obj, float) or isinstance(obj, int)):
-                raise ValueError('value is not a number')
+            return validate_number(obj, schema)
 
         case 'boolean':
             if not isinstance(obj, bool):
