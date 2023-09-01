@@ -80,7 +80,7 @@ def test_properties_and_pattern_properties():
         loads('{"array": [], "number": "12"}', schema)
 
 
-def test_additional_properties():
+def test_no_additional_properties():
     schema = {
         'type': 'object',
         'required': ['a1'],
@@ -95,6 +95,22 @@ def test_additional_properties():
     loads('{"a1": 12.3}', schema)
     with pytest.raises(ValueError):
         loads('{"a1": "12.3", "additional": 12}', schema)
+
+
+def test_additional_properties_schema():
+    schema = {
+        "type": "object",
+        "properties": {
+            "number": {"type": "number"},
+            "street_name": {"type": "string"},
+        },
+        "additionalProperties": {"type": "string"}
+    }
+
+    loads('{"number": 1600, "street_name": "Pennsylvania"}', schema)
+    loads('{"number": 1600, "street_name": "Pennsylvania", "additional": "NW"}', schema)
+    with pytest.raises(ValueError):
+        loads('{"number": 1600, "street_name": "Pennsylvania", "additional": 201}', schema)
 
 
 def test_required():

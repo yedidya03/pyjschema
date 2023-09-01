@@ -86,8 +86,12 @@ def _object(obj, schema: dict, **kwargs):
                     ret[key] = loado(obj.pop(key), sub_schema, **kwargs)
                     break
 
-    if 'additionalProperties' in schema and len(obj) > 0:
+    additional_properties = schema.get('additionalProperties')
+    if additional_properties is False and len(obj) > 0:
         raise ValueError(f'additional properties are not allowed')
+    elif isinstance(additional_properties, dict):
+        for key, value in obj.items():  # obj contains the remaining items
+            ret[key] = loado(obj[key], additional_properties, **kwargs)
     else:
         ret.update(obj)
 
@@ -128,7 +132,8 @@ def validate_array(obj, schema: dict, **kwargs):
 
         ret.append(_handle_array_item(i, item, schema, **kwargs))
 
-    if 'contains' in schema and (contains_count < contains_min or (contains_max is not None and contains_count > contains_max)):
+    if 'contains' in schema and \
+            (contains_count < contains_min or (contains_max is not None and contains_count > contains_max)):
         raise ValueError('value does not comply with the "contains" rules')
 
     if schema.get('uniqueItems') is True and len(unique_check) != len(obj):
