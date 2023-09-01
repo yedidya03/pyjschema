@@ -18,14 +18,9 @@ def test_array():
     pass
 
 
-def test_object():
-    pass
-
-
 def test_loads():
     schema = {
       "type": "object",
-      "title": "GetInfoArgs",
       "properties": {
           'number': {
               'type': 'number'

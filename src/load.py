@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Optional
 
 from src.number import validate_number
@@ -66,19 +67,22 @@ def _object(obj, schema: dict, **kwargs):
     if not isinstance(obj, dict):
         raise ValueError('value is not a dict')
 
-    if 'properties' not in schema:
-        return obj
-
     ret, required = dict(), set()
     if 'required' in schema:
-        required = set(schema['required'])
+        for key in schema['required']:
+            if key not in obj:
+                raise ValueError(f'filed "{key}" is required')
 
-    for prop, prop_schema in schema['properties'].items():
-        if prop in obj:
-            ret[prop] = loado(obj.pop(prop), prop_schema, **kwargs)
+    for key, value in dict(obj).items():
+        if 'properties' in schema and key in schema['properties']:
+            ret[key] = loado(obj.pop(key), schema['properties'][key], **kwargs)
+            continue
 
-        elif prop in required:
-            raise ValueError(f'filed "{prop}" is required')
+        if 'patternProperties' in schema:
+            for pattern, sub_schema in schema['patternProperties'].items():
+                if re.search(pattern, key):
+                    ret[key] = loado(obj.pop(key), sub_schema, **kwargs)
+                    break
 
     if 'additionalProperties' in schema and len(obj) > 0:
         raise ValueError(f'additional properties are not allowed')
