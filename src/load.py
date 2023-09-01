@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Optional
 
 from src.number import validate_number
@@ -61,31 +62,48 @@ def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] =
 
 
 def _object(obj, schema: dict, **kwargs):
-    # TODO: "patternProperties", "unevaluatedProperties", "propertyNames", "minProperties", "maxProperties"
+    # TODO: "unevaluatedProperties", "propertyNames"
 
     if not isinstance(obj, dict):
         raise ValueError('value is not a dict')
 
-    if 'properties' not in schema:
-        return obj
+    _validate_object_size(obj, schema)
 
     ret, required = dict(), set()
     if 'required' in schema:
-        required = set(schema['required'])
+        for key in schema['required']:
+            if key not in obj:
+                raise ValueError(f'filed "{key}" is required')
 
-    for prop, prop_schema in schema['properties'].items():
-        if prop in obj:
-            ret[prop] = loado(obj.pop(prop), prop_schema, **kwargs)
+    for key, value in dict(obj).items():
+        if 'properties' in schema and key in schema['properties']:
+            ret[key] = loado(obj.pop(key), schema['properties'][key], **kwargs)
+            continue
 
-        elif prop in required:
-            raise ValueError(f'filed "{prop}" is required')
+        if 'patternProperties' in schema:
+            for pattern, sub_schema in schema['patternProperties'].items():
+                if re.search(pattern, key):
+                    ret[key] = loado(obj.pop(key), sub_schema, **kwargs)
+                    break
 
-    if 'additionalProperties' in schema and len(obj) > 0:
+    additional_properties = schema.get('additionalProperties')
+    if additional_properties is False and len(obj) > 0:
         raise ValueError(f'additional properties are not allowed')
+    elif isinstance(additional_properties, dict):
+        for key, value in obj.items():  # obj contains the remaining items
+            ret[key] = loado(obj[key], additional_properties, **kwargs)
     else:
         ret.update(obj)
 
     return ret
+
+
+def _validate_object_size(obj: dict, schema: dict):
+    if 'minProperties' in schema and len(obj) < schema['minProperties']:
+        raise ValueError(f'object should be longer then {schema["minProperties"]} items')
+
+    if 'maxProperties' in schema and len(obj) > schema['maxProperties']:
+        raise ValueError(f'object should be shorter then {schema["maxProperties"]} items')
 
 
 def validate_array(obj, schema: dict, **kwargs):
@@ -114,7 +132,8 @@ def validate_array(obj, schema: dict, **kwargs):
 
         ret.append(_handle_array_item(i, item, schema, **kwargs))
 
-    if 'contains' in schema and (contains_count < contains_min or (contains_max is not None and contains_count > contains_max)):
+    if 'contains' in schema and \
+            (contains_count < contains_min or (contains_max is not None and contains_count > contains_max)):
         raise ValueError('value does not comply with the "contains" rules')
 
     if schema.get('uniqueItems') is True and len(unique_check) != len(obj):
