@@ -38,7 +38,7 @@ def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] =
             return _object(obj, schema, extended_formats=extended_formats)
 
         case 'array':
-            return _array(obj, schema, extended_formats=extended_formats)
+            return validate_array(obj, schema, extended_formats=extended_formats)
 
         case 'string':
             return validate_string(obj, schema, extended_formats)
@@ -60,7 +60,7 @@ def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] =
     return obj
 
 
-def _object(obj, schema: Optional[dict] = None, **kwargs):
+def _object(obj, schema: dict, **kwargs):
     # TODO: "patternProperties", "unevaluatedProperties", "propertyNames", "minProperties", "maxProperties"
 
     if not isinstance(obj, dict):
@@ -88,16 +88,58 @@ def _object(obj, schema: Optional[dict] = None, **kwargs):
     return ret
 
 
-def _array(obj, schema: Optional[dict] = None, **kwargs):
-    # TODO: "prefixItems", "contains", "minItems", "maxItems", "uniqueItems"
-
+def validate_array(obj, schema: dict, **kwargs):
     if not isinstance(obj, list):
         raise ValueError('value is not an array')
 
-    ret = []
+    _validate_array_range(obj, schema)
 
-    if 'items' in schema:
-        for item in obj:
-            ret.append(loado(item, schema['items'], **kwargs))
+    contains_count, contains_schema, contains_min, contains_max = 0, None, None, None
+    if 'contains' in schema:
+        contains_schema = schema['contains']
+        contains_min = schema.get('minContains', 1)
+        contains_max = schema.get('maxContains', None)
+
+    ret, unique_check = [], set()
+    for i, item in enumerate(obj):
+        if schema.get('uniqueItems') is True:
+            unique_check.add(item)
+
+        if 'contains' in schema:
+            try:
+                loado(item, contains_schema, **kwargs)
+                contains_count += 1
+            except ValueError:
+                pass
+
+        ret.append(_handle_array_item(i, item, schema, **kwargs))
+
+    if 'contains' in schema and (contains_count < contains_min or (contains_max is not None and contains_count > contains_max)):
+        raise ValueError('value does not comply with the "contains" rules')
+
+    if schema.get('uniqueItems') is True and len(unique_check) != len(obj):
+        raise ValueError('array values are not unique')
 
     return ret
+
+
+def _validate_array_range(obj: list, schema: dict):
+    if 'minItems' in schema and len(obj) < schema['minItems']:
+        raise ValueError('array length does not match "minItems"')
+
+    if 'maxItems' in schema and len(obj) > schema['maxItems']:
+        raise ValueError('array length does not match "maxItems"')
+
+
+def _handle_array_item(index: int, item, schema: dict, **kwargs):
+    if 'prefixItems' in schema:
+        if index < len(schema['prefixItems']):
+            return loado(item, schema['prefixItems'][index], **kwargs)
+
+        if schema.get('items') is False:
+            raise ValueError('more items are not allowed')
+
+    if 'items' in schema:
+        return loado(item, schema['items'], **kwargs)
+
+    return item
