@@ -113,6 +113,25 @@ def test_additional_properties_schema():
         loads('{"number": 1600, "street_name": "Pennsylvania", "additional": 201}', schema)
 
 
+def test_additional_properties_combined():
+    schema = {
+        "type": "object",
+        "properties": {
+            "builtin": {"type": "number"}
+        },
+        "patternProperties": {
+            "^S_": {"type": "string"},
+            "^I_": {"type": "integer"}
+        },
+        "additionalProperties": {"type": "string"}
+    }
+
+    loads('{"builtin": 42}', schema)
+    loads('{"keyword": "value"}', schema)
+    with pytest.raises(ValueError):
+        loads('{"keyword": 42}', schema)
+
+
 def test_required():
     schema = {'type': 'object', 'required': ['a1', 'a2']}
 
@@ -139,4 +158,3 @@ def test_object_size():
 
     with pytest.raises(ValueError):
         loads('{"a1": 1, "a2": "12.3", "a3": 4, "a4": 1}', schema)
-
