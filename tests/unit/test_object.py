@@ -107,3 +107,20 @@ def test_required():
 
     with pytest.raises(ValueError):
         loads('{"a2": "12.3"}', schema)
+
+
+def test_object_size():
+    schema = {'type': 'object', 'minProperties': 2, 'maxProperties': 3}
+
+    loads('{"a1": 12.3, "a2": "213"}', schema)
+    loads('{"a1": 12.3, "a2": "213", "a3": "123123"}', schema)
+
+    with pytest.raises(ValueError):
+        loads('{}', schema)
+
+    with pytest.raises(ValueError):
+        loads('{"1": 1}', schema)
+
+    with pytest.raises(ValueError):
+        loads('{"a1": 1, "a2": "12.3", "a3": 4, "a4": 1}', schema)
+

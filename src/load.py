@@ -62,10 +62,12 @@ def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] =
 
 
 def _object(obj, schema: dict, **kwargs):
-    # TODO: "patternProperties", "unevaluatedProperties", "propertyNames", "minProperties", "maxProperties"
+    # TODO: "unevaluatedProperties", "propertyNames"
 
     if not isinstance(obj, dict):
         raise ValueError('value is not a dict')
+
+    _validate_object_size(obj, schema)
 
     ret, required = dict(), set()
     if 'required' in schema:
@@ -90,6 +92,14 @@ def _object(obj, schema: dict, **kwargs):
         ret.update(obj)
 
     return ret
+
+
+def _validate_object_size(obj: dict, schema: dict):
+    if 'minProperties' in schema and len(obj) < schema['minProperties']:
+        raise ValueError(f'object should be longer then {schema["minProperties"]} items')
+
+    if 'maxProperties' in schema and len(obj) > schema['maxProperties']:
+        raise ValueError(f'object should be shorter then {schema["maxProperties"]} items')
 
 
 def validate_array(obj, schema: dict, **kwargs):
