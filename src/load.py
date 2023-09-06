@@ -1,5 +1,6 @@
 import json
 import re
+from copy import deepcopy
 from typing import Optional
 
 from src.number import validate_number
@@ -24,6 +25,11 @@ def loads(raw: str | bytes, schema: Optional[dict] = None, extended_formats: Opt
 
 
 def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] = None):
+    schema = deepcopy(schema)
+    return _loado(obj, schema, extended_formats=extended_formats)
+
+
+def _loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] = None):
     """
     Like loads only handling an object instead of raw json.
 
@@ -34,7 +40,74 @@ def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] =
     if schema is None:
         return obj
 
-    match schema['type']:
+    return _handle_composition(obj, schema, extended_formats=extended_formats)
+
+
+def _handle_composition(obj, schema: dict, **kwargs):
+    all_of = schema.pop('allOf', None)
+    any_of = schema.pop('anyOf', None)
+    one_of = schema.pop('oneOf', None)
+    not_ = schema.pop('not', None)
+
+    if not any((any_of, all_of, one_of, not_)):
+        return _handle_schema(obj, schema, **kwargs)
+
+    ret = obj
+
+    if not_ is not None:
+        any_of_passed = False
+        try:
+            _loado(obj, dict(**schema, **not_))
+            any_of_passed = True
+        except ValueError:
+            pass
+
+        if any_of_passed:
+            raise ValueError('should not match the schema')
+
+    if all_of is not None:
+        for sub_schema in all_of[::-1]:
+            ret = _loado(obj, dict(**schema, **sub_schema), **kwargs)
+
+    if any_of is not None:
+        any_of_passed = False
+        for sub_schema in any_of[::-1]:
+            # noinspection PyBroadException
+            try:
+                ret = _loado(obj, dict(**schema, **sub_schema), **kwargs)
+                any_of_passed = True
+                break
+            except Exception:
+                pass
+        if not any_of_passed:
+            raise ValueError('not passed any of the "anyOf" options')
+
+    if one_of is not None:
+        one_of_passed = 0
+        for sub_schema in one_of[::-1]:
+            try:
+                ret = _loado(obj, dict(**schema, **sub_schema), **kwargs)
+                one_of_passed += 1
+            except ValueError:
+                pass
+
+        if one_of_passed != 1:
+            raise ValueError('should apply only to one of the schemas')
+
+    return ret
+
+
+def _handle_schema(obj, schema: dict, extended_formats: Optional[dict] = None):
+    if 'const' in schema:
+        if schema['const'] != obj:
+            raise ValueError(f'value should be: {schema["const"]}')
+
+        return obj
+
+    match schema.get('type'):
+        case None:
+            return obj  # schema does not define a strict type, e.g. {"Title": "My Object"}
+
         case 'object':
             return _object(obj, schema, extended_formats=extended_formats)
 
@@ -69,33 +142,68 @@ def _object(obj, schema: dict, **kwargs):
 
     _validate_object_size(obj, schema)
 
-    ret, required = dict(), set()
+    _conditionals(obj, schema, **kwargs)
+
+    ret = dict()
+
+    properties_schema = schema.get('properties')
+    pattern_properties = schema.get('patternProperties')
+    remaining_keys = set(obj.keys())
+    for key, value in dict(obj).items():
+        if properties_schema is not None and key in properties_schema:
+            ret[key] = _loado(value, properties_schema[key], **kwargs)
+            remaining_keys.remove(key)
+            continue
+
+        if pattern_properties is not None:
+            for pattern, sub_schema in pattern_properties.items():
+                if re.search(pattern, key):
+                    ret[key] = _loado(value, sub_schema, **kwargs)
+                    remaining_keys.remove(key)
+                    break
+
+    additional_properties = schema.get('additionalProperties')
+    if additional_properties is False and len(remaining_keys) > 0:
+        raise ValueError(f'additional properties are not allowed')
+    elif isinstance(additional_properties, dict):
+        for key in remaining_keys:
+            ret[key] = _loado(obj[key], additional_properties, **kwargs)
+    else:
+        ret.update(obj)
+
+    return ret
+
+
+def _conditionals(obj, schema: dict, **kwargs):
+    """
+    Conditional are sets of validation options that do not affect the result objects type.
+    """
     if 'required' in schema:
         for key in schema['required']:
             if key not in obj:
                 raise ValueError(f'filed "{key}" is required')
 
-    for key, value in dict(obj).items():
-        if 'properties' in schema and key in schema['properties']:
-            ret[key] = loado(obj.pop(key), schema['properties'][key], **kwargs)
-            continue
+    if 'dependentRequired' in schema:
+        for dependent, dependencies in schema['dependentRequired'].items():
+            for dependency in dependencies:
+                if dependent in obj and dependency not in obj:
+                    raise ValueError(f'"{dependent}" in dependent in "{dependency}"')
 
-        if 'patternProperties' in schema:
-            for pattern, sub_schema in schema['patternProperties'].items():
-                if re.search(pattern, key):
-                    ret[key] = loado(obj.pop(key), sub_schema, **kwargs)
-                    break
+    # TODO: should work link allOf not in here
+    if 'dependentSchemas' in schema:
+        for dependent, dependency_schema in schema['dependentSchemas'].items():
+            if dependent in obj:
+                _loado(obj[dependent], dependency_schema, **kwargs)
 
-    additional_properties = schema.get('additionalProperties')
-    if additional_properties is False and len(obj) > 0:
-        raise ValueError(f'additional properties are not allowed')
-    elif isinstance(additional_properties, dict):
-        for key, value in obj.items():  # obj contains the remaining items
-            ret[key] = loado(obj[key], additional_properties, **kwargs)
-    else:
-        ret.update(obj)
-
-    return ret
+    if 'if' in schema:
+        try:
+            _loado(obj, schema['if'], **kwargs)
+        except ValueError:
+            if 'else' in schema:
+                _loado(obj, schema['else'], **kwargs)
+        else:
+            if 'then' in schema:
+                _loado(obj, schema['then'], **kwargs)
 
 
 def _validate_object_size(obj: dict, schema: dict):
@@ -125,7 +233,7 @@ def validate_array(obj, schema: dict, **kwargs):
 
         if 'contains' in schema:
             try:
-                loado(item, contains_schema, **kwargs)
+                _loado(item, contains_schema, **kwargs)
                 contains_count += 1
             except ValueError:
                 pass
@@ -153,12 +261,12 @@ def _validate_array_range(obj: list, schema: dict):
 def _handle_array_item(index: int, item, schema: dict, **kwargs):
     if 'prefixItems' in schema:
         if index < len(schema['prefixItems']):
-            return loado(item, schema['prefixItems'][index], **kwargs)
+            return _loado(item, schema['prefixItems'][index], **kwargs)
 
         if schema.get('items') is False:
             raise ValueError('more items are not allowed')
 
     if 'items' in schema:
-        return loado(item, schema['items'], **kwargs)
+        return _loado(item, schema['items'], **kwargs)
 
     return item
