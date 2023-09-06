@@ -34,7 +34,68 @@ def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] =
     if schema is None:
         return obj
 
-    match schema['type']:
+    return _handle_composition(obj, schema, extended_formats=extended_formats)
+
+
+def _handle_composition(obj, schema: dict, **kwargs):
+    all_of = schema.get('allOf', None)
+    any_of = schema.get('anyOf', None)
+    one_of = schema.get('oneOf', None)
+    not_ = schema.get('not', None)
+
+    if not any((any_of, all_of, one_of, not_)):
+        return _handle_schema(obj, schema, **kwargs)
+
+    ret = obj
+
+    if not_ is not None:
+        any_of_passed = False
+        try:
+            _handle_schema(obj, dict(**schema, **not_))
+            any_of_passed = True
+        except ValueError:
+            pass
+
+        if any_of_passed:
+            raise ValueError('should not match the schema')
+
+    if all_of is not None:
+        for sub_schema in all_of[::-1]:
+            ret = _handle_schema(obj, dict(**schema, **sub_schema), **kwargs)
+
+    if any_of is not None:
+        any_of_passed = False
+        for sub_schema in any_of[::-1]:
+            # noinspection PyBroadException
+            try:
+                ret = _handle_schema(obj, dict(**schema, **sub_schema), **kwargs)
+                any_of_passed = True
+                break
+            except Exception:
+                pass
+        if not any_of_passed:
+            raise ValueError('not passed any of the "anyOf" options')
+
+    if one_of is not None:
+        one_of_passed = 0
+        for sub_schema in one_of[::-1]:
+            try:
+                ret = _handle_schema(obj, dict(**schema, **sub_schema), **kwargs)
+                one_of_passed += 1
+            except ValueError:
+                pass
+
+        if one_of_passed != 1:
+            raise ValueError('should apply only to one of the schemas')
+
+    return ret
+
+
+def _handle_schema(obj, schema: dict, extended_formats: Optional[dict] = None):
+    match schema.get('type'):
+        case None:
+            return obj  # schema does not define a strict type, e.g. {"Title": "My Object"}
+
         case 'object':
             return _object(obj, schema, extended_formats=extended_formats)
 
