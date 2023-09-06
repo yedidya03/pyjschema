@@ -1,4 +1,4 @@
-from src.load import loads, loado
+from src.load import loads, _loado
 
 
 def validate_raw(raw: bytes | str, schema: dict):
@@ -6,4 +6,4 @@ def validate_raw(raw: bytes | str, schema: dict):
 
 
 def validate_obj(obj, schema: dict):
-    loado(obj, schema)
+    _loado(obj, schema)
