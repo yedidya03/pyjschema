@@ -1,0 +1,24 @@
+[build-system]
+requires = ['setuptools>=61.0.0']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = "jschema"
+version = "1.0.0"
+description = "A package for validating json according to a json schema, and type parsing it to python types."
+readme = "README.md"
+authors = [{ name = "Yedidya Freundlich", email = "yedidya03@gmail.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+dependencies = []
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = ["pytest", "pip-tools"]
+
+[project.urls]
+Homepage = "https://github.com/yedidya03/jschema"
