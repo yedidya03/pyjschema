@@ -58,12 +58,10 @@ class JsonSchemaParser:
         if not isinstance(ref, str):
             raise ValueError('$ref has to be a string')
 
-        if not ref.startswith('#/'):
+        if not ref.startswith('#'):
             raise ValueError(f'ref "{ref}" is not supported')
 
         path = ref.split('/')[1:]
-        if len(path) == 0:
-            raise ValueError(f'invalid ref "{ref}"')
 
         schema = self._orig_schema
         for key in path:
