@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = "pyjschema"
-version = "1.0.3"
+version = "1.0.4"
 description = "A package for validating json according to a json schema, and type parsing it to python types."
 readme = "README.md"
 authors = [{ name = "Yedidya Freundlich", email = "yedidya03@gmail.com" }]
@@ -14,7 +14,9 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
 ]
-dependencies = []
+dependencies = [
+    "fqdn >= 1.5.1"
+]
 requires-python = ">=3.9"
 
 [project.optional-dependencies]
