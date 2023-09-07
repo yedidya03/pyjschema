@@ -2,8 +2,10 @@ import base64
 import ipaddress
 import re
 import uuid
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import Callable, Any, Optional
+
+from fqdn import FQDN
 
 
 def _email(s: str) -> str:
@@ -13,18 +15,49 @@ def _email(s: str) -> str:
     return s
 
 
-# TODO: complete formats
+date_signs = {'Y': 'years', 'M': 'months', 'W': 'weeks', 'D': 'days'}
+time_signs = {'H': 'hours', 'M': 'minutes', 'S': 'seconds'}
+
+
+def _build_duration(s: str, signs: dict[str, str]) -> timedelta:
+    build = {}
+    last = 0
+    for i, c in enumerate(s):
+        if c in signs:
+            build[signs[c]] = float(s[last:i])
+
+    return timedelta(**build)
+
+
+def _duration(s: str) -> timedelta:
+    if not s.startswith('P'):
+        raise ValueError(f'"{s}" is not in a correct duration format')
+
+    parts = s[1:].split('T')
+    if len(parts) > 1:
+        return _build_duration(parts[0], date_signs) + _build_duration(parts[1], time_signs)
+
+    return _build_duration(parts[0], date_signs)
+
+
+def _hostname(s: str) -> str:
+    if not FQDN(s).is_valid:
+        raise ValueError(f'"{s}" is not a valid hostname')
+
+    return s
+
+
 DEFAULT_FORMATS: dict[str, Callable[[str], Any]] = {
     'uuid': lambda s: uuid.UUID(s),
     'date-time': datetime.fromisoformat,
     'time': time.fromisoformat,
     'date': lambda s: datetime.strptime(s, '%Y-%m-%d').date(),
-    # 'duration': lambda x: x,  # TODO
+    'duration': _duration,
     'email': _email,
     'ipv4': ipaddress.IPv4Address,
     'ipv6': ipaddress.IPv6Address,
-    # 'hostname': lambda x: FQDN(instance).is_valid
-    'bytes': base64.b64decode
+    'hostname': _hostname,
+    'binary': base64.b64decode
 }
 
 
