@@ -1,4 +1,4 @@
-from src.load import loads, _loado
+from pyjschema.load import loads, _loado
 
 
 def validate_raw(raw: bytes | str, schema: dict):

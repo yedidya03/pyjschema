@@ -29,8 +29,6 @@ DEFAULT_FORMATS: dict[str, Callable[[str], Any]] = {
 
 
 def validate_string(obj, schema: dict, extended_formats: Optional[dict] = None):
-    # TODO: "pattern", more formats
-
     if not isinstance(obj, str):
         raise ValueError('value is not a string')
 

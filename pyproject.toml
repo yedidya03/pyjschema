@@ -3,8 +3,8 @@ requires = ['setuptools>=61.0.0']
 build-backend = 'setuptools.build_meta'
 
 [project]
-name = "jschema"
-version = "1.0.0"
+name = "pyjschema"
+version = "1.0.3"
 description = "A package for validating json according to a json schema, and type parsing it to python types."
 readme = "README.md"
 authors = [{ name = "Yedidya Freundlich", email = "yedidya03@gmail.com" }]

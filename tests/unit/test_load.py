@@ -1,6 +1,6 @@
 import pytest
 
-from src.load import loads
+from pyjschema.load import loads
 
 
 def test_bool():

@@ -3,8 +3,8 @@ import re
 from copy import deepcopy
 from typing import Optional
 
-from src.number import validate_number
-from src.string import validate_string
+from pyjschema.number import validate_number
+from pyjschema.string import validate_string
 
 
 def loads(raw: str | bytes, schema: Optional[dict] = None, extended_formats: Optional[dict] = None, **kwargs):
@@ -194,7 +194,8 @@ class JsonSchemaParser:
             for key in remaining_keys:
                 ret[key] = self._loado(obj[key], additional_properties)
         else:
-            ret.update(obj)
+            for key in remaining_keys:
+                ret[key] = obj[key]
 
         return ret
 

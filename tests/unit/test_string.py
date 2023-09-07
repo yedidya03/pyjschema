@@ -3,7 +3,7 @@ from datetime import time, datetime
 
 import pytest
 
-from src.load import loads
+from pyjschema.load import loads
 
 
 def test_string():
@@ -26,6 +26,12 @@ def test_uuid():
     schema = {'type': 'string', 'format': 'uuid'}
 
     assert isinstance(loads(f'"3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a"', schema), uuid.UUID)
+
+    schema = {'type': 'object', 'properties': {'uuid': {'type': 'string', 'format': 'uuid'}}}
+
+    result = loads('{"uuid": "3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a"}', schema)
+    print(result)
+    assert result == {'uuid': uuid.UUID('3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a')}
 
 
 def test_time():
