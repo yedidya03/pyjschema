@@ -17,6 +17,7 @@ def loads(raw: str | bytes, schema: Optional[dict] = None, extended_formats: Opt
     :param raw: the json to parse according to the schema
     :param schema: the schema to check according to
     :param extended_formats: more formats for string parsing
+    :param kwargs: stdlib json additional parameters
 
     TODO: add the params options of json.loads to this function
     """
