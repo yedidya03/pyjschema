@@ -1,2 +1,2 @@
 
-__version__ = '1.0.0'
+from load import loads, loado, JsonSchemaParser
