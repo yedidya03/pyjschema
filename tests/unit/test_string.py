@@ -1,6 +1,6 @@
 import uuid
-from base64 import b64decode, b64encode
 from datetime import time, datetime
+from ipaddress import IPv4Address, IPv6Address
 
 import pytest
 
@@ -32,7 +32,6 @@ def test_uuid():
     schema = {'type': 'object', 'properties': {'uuid': {'type': 'string', 'format': 'uuid'}}}
 
     result = loads('{"uuid": "3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a"}', schema)
-    print(result)
     assert result == {'uuid': uuid.UUID('3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a')}
 
 
@@ -40,6 +39,12 @@ def test_time():
     schema = {'type': 'string', 'format': 'time'}
 
     assert isinstance(loads(f'"20:20:39+00:00"', schema), time)
+
+
+def test_duration():
+    schema = {'type': 'string', 'format': 'duration'}
+
+    assert loads(f'"P3DT12H"', schema) == timedelta(days=3, hours=12)
 
 
 def test_datetime():
@@ -51,7 +56,15 @@ def test_datetime():
 def test_ipv4():
     schema = {'type': 'string', 'format': 'ipv4'}
 
-    loads(f'"1.1.1.1"', schema)
+    assert isinstance(loads(f'"1.1.1.1"', schema), IPv4Address)
+    with pytest.raises(ValueError):
+        loads(f'"1.1.1.400"', schema)
+
+
+def test_ipv6():
+    schema = {'type': 'string', 'format': 'ipv6'}
+
+    assert isinstance(loads(f'"2001:0000:130F:0000:0000:09C0:876A:130B"', schema), IPv6Address)
     with pytest.raises(ValueError):
         loads(f'"1.1.1.400"', schema)
 

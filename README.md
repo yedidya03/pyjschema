@@ -14,7 +14,7 @@ packages.
 
 ## Installation
 ```commandline
-$ pip install jschema
+$ pip install pyjschema
 ```
 
 ## Examples
