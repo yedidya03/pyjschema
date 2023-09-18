@@ -2,17 +2,18 @@ import re
 from typing import Type
 
 from pyjschema.string.formatter import Formatter, UUIDFormat, DatetimeFormat, TimeFormat, DateFormat, EmailFormatter, \
-    Ipv4Formatter, Ipv6Formatter
-
+    Ipv4Formatter, Ipv6Formatter, DurationFormatter, HostnameFormatter
 
 DEFAULT_FORMATS: list[Type[Formatter]] = [
     UUIDFormat,
     DatetimeFormat,
     TimeFormat,
     DateFormat,
+    DurationFormatter,
     EmailFormatter,
     Ipv4Formatter,
     Ipv6Formatter,
+    HostnameFormatter,
 ]
 
 
