@@ -1,9 +1,11 @@
 import uuid
+from base64 import b64decode, b64encode
 from datetime import time, datetime
 
 import pytest
 
-from pyjschema.load import loads
+from pyjschema import Formatter
+from pyjschema.load import loads, JsonSchemaParser
 
 
 def test_string():
@@ -82,3 +84,21 @@ def test_length():
 
     with pytest.raises(ValueError):
         loads(f'"t2sdfas"', schema)
+
+
+def test_extended_formats():
+    class BytesFormatter(Formatter):
+        symbol = 'bytes'
+
+        def decode(self, raw: str) -> bytes:
+            return b64decode(raw)
+
+        def encode(self, data: bytes) -> str:
+            return b64encode(data).decode()
+
+    schema = {'type': 'string', 'format': 'bytes'}
+    parser = JsonSchemaParser(schema, extended_formats=[BytesFormatter])
+
+    decoded = parser.loads('"SGVsbG8gV29ybGQh"')
+    assert isinstance(decoded, bytes)
+    assert decoded == b'Hello World!'

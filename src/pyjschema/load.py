@@ -1,10 +1,10 @@
 import json
 import re
 from copy import deepcopy
-from typing import Optional
+from typing import Optional, Type
 
 from pyjschema.number import validate_number
-from pyjschema.string import validate_string
+from pyjschema.string import validate_string, Formatter, DEFAULT_FORMATS
 
 
 def loads(raw: str | bytes, schema: Optional[dict] = None, extended_formats: Optional[dict] = None, **kwargs):
@@ -35,9 +35,24 @@ def loado(obj, schema: Optional[dict] = None, extended_formats: Optional[dict] =
 
 class JsonSchemaParser:
 
-    def __init__(self, schema: Optional[dict] = None, extended_formats: Optional[dict] = None):
-        self._extended_format = extended_formats
+    def __init__(self, schema: Optional[dict] = None, extended_formats: Optional[list[Type[Formatter] | Formatter]] = None):
+
+        self._formats: dict[str, Formatter] = {}
+        all_formats = DEFAULT_FORMATS
+        if extended_formats is not None:
+            all_formats += extended_formats
+
+        for f in all_formats:
+            if not isinstance(f, Formatter):
+                f = f()
+
+            self._formats[f.symbol] = f
+
         self._orig_schema = schema
+
+    def loads(self, raw: str | bytes):
+        obj = json.loads(raw)
+        return self.parse(obj)
 
     def parse(self, obj):
         schema = deepcopy(self._orig_schema)
@@ -141,7 +156,7 @@ class JsonSchemaParser:
                 return self.validate_array(obj, schema)
 
             case 'string':
-                return validate_string(obj, schema, extended_formats=self._extended_format)
+                return validate_string(obj, schema, formats=self._formats)
 
             case 'number' | 'integer':
                 return validate_number(obj, schema)
